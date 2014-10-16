@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 ################################################################################
 #  base-alert-daemon.py
-#  
+#
+#  Script daemonizes sending of alerts.
 #
 #  Created by Brian Baughman on 2014-10-16.
 #  Copyright 2014 Brian Baughman. All rights reserved.
@@ -16,78 +17,48 @@ except:
   print 'Failed to load base modules'
   sys.exit(-1)
 
-try:
-  # Home directory
-  homedir = environ['HOME']
-  # stop if something looks wrong
-except:
-  print 'Failed to load modules'
+
+parser = argparse.ArgumentParser(description='Creates a daemon for sending alerts.')
+
+
+parser.add_argument("--inter",\
+                    action="store", dest="inter", \
+                    default=60,\
+                    help="Number of seconds to wait between polls.")
+
+parser.add_argument("--pid-file",\
+                    action="store", dest="pidfile", \
+                    default='/tmp/.base-alert-daemon.lock',\
+                    help="Lock file for daemon.")
+
+parser.add_argument("--exec-fiile",\
+                    action="store", dest="execfile", \
+                    default='%s/base-alert.py'%(pathname),\
+                    help="Executable file to be run by daemon.")
+
+parser.add_argument("--log-fiile",\
+                    action="store", dest="logfile", \
+                    default='/dev/null',\
+                    help="Log file for daemon.")
+
+args = parser.parse_args()
+
+
+
+if not path.isfile(args.execfile):
+  print 'Cannot find file: %s'%(args.execfile)
   _exit(-1)
 
-
-if not path.isfile('%s/base-alert.py'%pathname):
-  print 'Cannot file base-alert.py!'
+if not access(args.execfile,X_OK):
+  print 'Cannot execute : '%(args.execfile)
   _exit(-1)
 
-if not access('%s/base-alert.py'%pathname,X_OK):
-  print 'Cannot execute base-alert.py!'
-  _exit(-1)
-################################################################################
-# Environment Setup
-################################################################################
-
-
-try:
-  gcndaemonlog = environ['GCNDAEMONLOG']
-except:
-  gcndaemonlog = '%s/logs/gcn-daemon.log'%homedir
-
-try:
-  gcndaemonlock = environ['GCNDAEMONLOCK']
-except:
-  gcndaemonlock = '/tmp/base-alert-daemon.lock'
-
-# Server hosting GCN DB and web content
-try:
-  gcndbsrv = environ['GCNDBSRV']
-except:
-  print 'GCNDBSRV is not defined!'
-  _exit(-2)
-
-# Location of GCN database on GCNDBSRV
-try:
-  gcndbosrv = environ['GCNDBOSRV']
-except:
-  print 'GCNDBOSRV is not defined!'
-  _exit(-2)
-
-gcndbfname = path.basename(gcndbosrv)
-
-# Location of web content on GCNDBSRV
-try:
-  gcnwebosrv = environ['GCNWEBOSRV']
-except:
-  print 'GCNWEBOSRV is not defined!'
-  _exit(-2)
-
-
-
-try:
-  gcnweb = environ['GCNWEB']
-except:
-  gcnweb = '%s/public_html'%homedir
-
-try:
-  gcninter = float(environ['GCNINTER'])
-except:
-  gcninter = 60
 ################################################################################
 # App to run
 ################################################################################
 
 class App():
-  def __init__(self,log=devnull,inter=60,
-               pidfile='/tmp/.base-alert-daemon.lock'):
+  def __init__(self, execfile, log, inter, pidfile):
     self.stdin_path = '/dev/null'
     self.stdout_path = log
     self.stderr_path = log
@@ -95,52 +66,24 @@ class App():
     self.pidfile_timeout = inter+1
     self.umask = 0022
     self.inter = inter
+    self.execfile = execfile
     self.modtime = None
-    self.buildsite = False
+  
   def run(self):
     self.Check()
 
-  def UpdateDB(self):
-    '''
-      Updates the local copy of the GCN DB
-    '''
-    devnullfobj = open(devnull,'w')
-    call(['rsync','-azq','%s:%s'%(gcndbsrv,gcndbosrv),'%s/'%gcnweb] ) #,\
-    #     stdout=devnullfobj,stderr=devnullfobj)
-    devnullfobj.close()
-    if path.isfile('%s/%s'%(gcnweb,gcndbfname)):
-      cmt = path.getmtime('%s/%s'%(gcnweb,gcndbfname))
-      if self.modtime == None or self.modtime != cmt:
-        self.modtime = cmt
-        self.buildsite = True
   
-  def SiteAlerter(self):
+  def Alerter(self):
     '''
-      Calls base-alert.py
+      Calls execfile
     '''
-    call(['%s/base-alert.py'%pathname])
+    call([self.execfile])
 
-
-  def PushBack(self):
-    '''
-      Pushes generated web content back to DB server
-    '''
-    devnullfobj = open(devnull,'w')
-    call(['rsync','-azq','--exclude=%s'%gcndbfname,\
-          '%s/'%gcnweb,\
-          '%s:%s'%(gcndbsrv,gcnwebosrv)],\
-         stdout=devnullfobj,stderr=devnullfobj)
-    devnullfobj.close()
-  
   def Check(self):
     '''
       Function which calls itself every interval
     '''
-    self.UpdateDB()
-    if self.buildsite:
-      self.SiteAlerter()
-      self.PushBack()
-      self.buildsite = False
+    self.Alerter()
     # Wait for inter then call again
     time.sleep(self.inter)
     self.Check()
@@ -148,8 +91,9 @@ class App():
 
 # Start daemon
 if __name__ == "__main__":
-  app = App(log=gcndaemonlog,inter=gcninter,pidfile=gcndaemonlock)
+  app = App(execfile=args.execfile, log=args.logfile, inter=args.inter, \
+            pidfile=args.pidfile)
   daemon_runner = runner.DaemonRunner(app)
-  daemon_runner.daemon_context.files_preserve=[gcndaemonlog]
+  daemon_runner.daemon_context.files_preserve=[args.logfile]
   daemon_runner.do_action();
 

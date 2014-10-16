@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 ################################################################################
 #  base-alert.py
-#  Checks status of computers and sends alerts keeping track of them via
+#  Sends alerts keeping track of them via sqlite db.
+#  This is a simplified framework which should be modified for specific use
 #
 #  Created by Brian Baughman on 2014-10-16.
 #  Copyright 2014 Brian Baughman. All rights reserved.
@@ -23,28 +24,27 @@ try:
       from sqlite import connect
     except:
       sys.exit(-2)
-  from email import MIMEText
-  import smtplib
-  # Home directory
-  homedir = environ['HOME']
-  # stop if something looks wrong
 except:
   print 'Failed to load modules'
   sys.exit(-1)
 
-##############################################################################
-# Generic Settings
-##############################################################################
-# environmental variables prefix
-eprfx = 'CR'
-# base filename
-bfnm = 'base-alert'
-# Update date format
-updfmt = '%Y-%m-%dT%H:%M:%S'
-# Subject of email format
-sbjctfmt = '%i computers not reporting'
-# Content of email format
-txtfmt = 'The following %i computers are not reporting:\n%s'
+
+parser = argparse.ArgumentParser(description='Sending alerts.')
+
+
+parser.add_argument("--cfg-fiile",\
+                    action="store", dest="cfgfile", \
+                    default='%s/base-alert.py'%(pathname),\
+                    type=argparse.FileType('r'),\
+                    help="Configuration file.")
+
+parser.add_argument("--cfg-delimiter",\
+                    action="store", dest="cfgdelimiter", \
+                    default=':',\
+                    help="Delimiter used in configuration file.")
+
+
+args = parser.parse_args()
 
 ################################################################################
 # Define DB structure
@@ -122,6 +122,22 @@ def definetbl(dbcfg,tblstruct):
 ################################################################################
 # Useful functions
 ################################################################################
+def readcfg(cfgfile,delimiter:
+  '''
+    Reads in a configuraiton file formatted where each line contains a key and 
+    a value separated by the provided delimiter. Returns a dictionary and 
+    status integer. None zero status means incorrectly formatted file.
+  '''
+  retdict = {}
+  status = 0
+  for line in cfgfile:
+    carr = line.split(delimiter)
+    if len(carr) != 2:
+      status += 1
+      continue
+    retdict[carr[0]] = carr[1]
+  return retdict, status
+
 def easy_exit(eval,dbcfgs):
   '''
     Function to clean up before exiting and exiting itself
@@ -151,104 +167,36 @@ def dircheck(dir):
   except:
     return False
 
-def gettxt(cinfo,curzen,sitetag,sitelink):
-  '''
-    Generated formatted text for email alert
-  '''
-  txt = txtfmt%(cinfo.inst.capitalize(),\
-                cinfo.trigid,\
-                curzen,\
-                shorten(cinfo.link),\
-                sitelink)
-  return txt
 
-def email(sender,recipient,subject,text):
-  msg = MIMEText.MIMEText(text)
-  # sender == the sender's email address
-  # recipient == the recipient's email address
-  msg['Subject'] = subject
-  msg['From'] = sender
-  if hasattr(recipient,'__iter__'):
-    msg['To'] = ','.join(recipient)
-  else:
-    msg['To'] = recipient
-
-  # Send the message via our own SMTP server, but don't include the
-  # envelope header.
-  s = smtplib.SMTP(gcnsmtp)
-  s.sendmail(sender, msg['To'].split(','), msg.as_string())
-  s.quit()
 
 if __name__ == "__main__":
-  # Alerts config
-  try:
-    cfgfname = environ[eprfx+'CONFIGFILE']
-  except:
-    cfgfname = '%s/.%s.cfg'%(homedir,bfnm)
+  ##############################################################################
+  # read config
+  ##############################################################################
 
-  # Log file name
-  try:
-    logfname = environ[eprfx+'LOGFILE']
-  except:
-    logfname = '%s/logs/%s.log'%(homedir,bfnm)
-
-  # sqlite database file
-  try:
-    dbfname = environ['DBFNAME']
-  except:
-    dbfname = '%s/%s.db'%(homedir,bfnm)
-  try:
-    dbtablename = environ[eprfx+'TABLENAME']
-  except:
-    dbtablename = eprfx
-
-
-
+  cfg,cfgstatus = readcfg(args.cfgfile,args.cfgdelimiter)
+  if cfgstatus != 0:
+    print 'Configuration file incorrectly formatted.'
+    easy_exit(-3)
   ##############################################################################
   # LOG FILE CONFIGURATION
   ##############################################################################
   # Log file name
-  logging.basicConfig(filename=salertlog,\
-                      format='%(asctime)s %(levelname)s: %(message)s',\
-                      filemode='a', level=logging.DEBUG)
+  logging.basicConfig(filename=cfg['logfile'],\
+            format='%(asctime)s %(levelname)s: %(message)s',\
+            filemode='a', level=logging.DEBUG)
   ##############################################################################
   # Get Database
   ##############################################################################
   try:
-    dbcfg = connectdb(dbfname)
+    dbcfg = connectdb(cfg['dbfname'])
 
   except:
-    logging.error('Could not read %s'%dbfname)
+    logging.error('Could not read %s'%(cfg['dbfname']))
     easy_exit(-1,None)
   if dbcfg == None:
     logging.info('DB failed to initialize.')
     easy_exit(-1,None)
-
-  ##############################################################################
-  # read config
-  ##############################################################################
-  # Sender of emails
-  sender = None
-  # Reciepents of email
-  recipients = None
-  # Read configuration file
-  try:
-    cfgif = open(cfgfname,'r')
-    cfglines = cfgif.readlines()
-    cfgif.close()
-    if len(cfglines) >= 2:
-      sender = cfglines[0].strip()
-      recipients = cfglines[1].strip().split(',')
-    if len(recipients) <=0 :
-      sender = None
-      recipients = None
-  except:
-    logging.error('Cannot read sender/recipients from: %s\n%s\n'%(cfgfname,traceback.format_exc()))
-    easy_exit(-3,[dbcfg])
-
-  ##############################################################################
-  # Environment Settings
-  ##############################################################################
 
   ################################################################################
   # Meat
