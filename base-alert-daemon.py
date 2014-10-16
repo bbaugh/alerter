@@ -1,0 +1,155 @@
+#!/usr/bin/env python
+################################################################################
+#  base-alert-daemon.py
+#  
+#
+#  Created by Brian Baughman on 2014-10-16.
+#  Copyright 2014 Brian Baughman. All rights reserved.
+################################################################################
+try:
+  import sys, re, time
+  from daemon import runner
+  from os import environ, path, _exit, makedirs, stat, devnull, access, X_OK
+  from subprocess import call, STDOUT, PIPE, Popen
+  pathname = path.dirname(sys.argv[0])
+except:
+  print 'Failed to load base modules'
+  sys.exit(-1)
+
+try:
+  # Home directory
+  homedir = environ['HOME']
+  # stop if something looks wrong
+except:
+  print 'Failed to load modules'
+  _exit(-1)
+
+
+if not path.isfile('%s/base-alert.py'%pathname):
+  print 'Cannot file base-alert.py!'
+  _exit(-1)
+
+if not access('%s/base-alert.py'%pathname,X_OK):
+  print 'Cannot execute base-alert.py!'
+  _exit(-1)
+################################################################################
+# Environment Setup
+################################################################################
+
+
+try:
+  gcndaemonlog = environ['GCNDAEMONLOG']
+except:
+  gcndaemonlog = '%s/logs/gcn-daemon.log'%homedir
+
+try:
+  gcndaemonlock = environ['GCNDAEMONLOCK']
+except:
+  gcndaemonlock = '/tmp/base-alert-daemon.lock'
+
+# Server hosting GCN DB and web content
+try:
+  gcndbsrv = environ['GCNDBSRV']
+except:
+  print 'GCNDBSRV is not defined!'
+  _exit(-2)
+
+# Location of GCN database on GCNDBSRV
+try:
+  gcndbosrv = environ['GCNDBOSRV']
+except:
+  print 'GCNDBOSRV is not defined!'
+  _exit(-2)
+
+gcndbfname = path.basename(gcndbosrv)
+
+# Location of web content on GCNDBSRV
+try:
+  gcnwebosrv = environ['GCNWEBOSRV']
+except:
+  print 'GCNWEBOSRV is not defined!'
+  _exit(-2)
+
+
+
+try:
+  gcnweb = environ['GCNWEB']
+except:
+  gcnweb = '%s/public_html'%homedir
+
+try:
+  gcninter = float(environ['GCNINTER'])
+except:
+  gcninter = 60
+################################################################################
+# App to run
+################################################################################
+
+class App():
+  def __init__(self,log=devnull,inter=60,
+               pidfile='/tmp/.base-alert-daemon.lock'):
+    self.stdin_path = '/dev/null'
+    self.stdout_path = log
+    self.stderr_path = log
+    self.pidfile_path =  pidfile
+    self.pidfile_timeout = inter+1
+    self.umask = 0022
+    self.inter = inter
+    self.modtime = None
+    self.buildsite = False
+  def run(self):
+    self.Check()
+
+  def UpdateDB(self):
+    '''
+      Updates the local copy of the GCN DB
+    '''
+    devnullfobj = open(devnull,'w')
+    call(['rsync','-azq','%s:%s'%(gcndbsrv,gcndbosrv),'%s/'%gcnweb] ) #,\
+    #     stdout=devnullfobj,stderr=devnullfobj)
+    devnullfobj.close()
+    if path.isfile('%s/%s'%(gcnweb,gcndbfname)):
+      cmt = path.getmtime('%s/%s'%(gcnweb,gcndbfname))
+      if self.modtime == None or self.modtime != cmt:
+        self.modtime = cmt
+        self.buildsite = True
+  
+  def SiteAlerter(self):
+    '''
+      Calls base-alert.py
+    '''
+    call(['%s/base-alert.py'%pathname])
+
+
+  def PushBack(self):
+    '''
+      Pushes generated web content back to DB server
+    '''
+    devnullfobj = open(devnull,'w')
+    call(['rsync','-azq','--exclude=%s'%gcndbfname,\
+          '%s/'%gcnweb,\
+          '%s:%s'%(gcndbsrv,gcnwebosrv)],\
+         stdout=devnullfobj,stderr=devnullfobj)
+    devnullfobj.close()
+  
+  def Check(self):
+    '''
+      Function which calls itself every interval
+    '''
+    self.UpdateDB()
+    if self.buildsite:
+      self.SiteAlerter()
+      self.PushBack()
+      self.buildsite = False
+    # Wait for inter then call again
+    time.sleep(self.inter)
+    self.Check()
+
+
+# Start daemon
+if __name__ == "__main__":
+  app = App(log=gcndaemonlog,inter=gcninter,pidfile=gcndaemonlock)
+  daemon_runner = runner.DaemonRunner(app)
+  daemon_runner.daemon_context.files_preserve=[gcndaemonlog]
+  daemon_runner.do_action();
+
