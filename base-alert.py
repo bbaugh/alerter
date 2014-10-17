@@ -13,6 +13,7 @@
 try:
   import sys, re, time, logging, traceback
   from os import environ, path, _exit, makedirs, stat, access, R_OK, W_OK
+  import argparse
 except:
   print 'Failed to load base modules'
   _exit(-1)
@@ -27,9 +28,8 @@ except:
 parser = argparse.ArgumentParser(description='Sending alerts.')
 
 
-parser.add_argument("--cfg-fiile",\
+parser.add_argument("--cfg-file",\
                     action="store", dest="cfgfile", \
-                    default='%s/base-alert.py'%(pathname),\
                     type=argparse.FileType('r'),\
                     help="Configuration file.")
 
@@ -65,7 +65,6 @@ args = parser.parse_args()
             nullst - null state
 '''
 tblstruct = {}
-tblstruct['tblname'] = 'base'
 # Unix time stamp of start time REQUIRED
 tblstruct['start'] = {}
 tblstruct['start']['index']  = 0
@@ -100,6 +99,9 @@ def readcfg(cfgfile,delimiter):
   status = 0
   for line in cfgfile:
     line = line.strip()
+    # skip blank lines
+    if len(line) == 0:
+      continue
     # Skip comments
     if line[0] == '#':
       continue
@@ -108,7 +110,7 @@ def readcfg(cfgfile,delimiter):
     if len(carr) != 2:
       status += 1
       continue
-    retdict[carr[0]] = carr[1]
+    retdict[carr[0].strip()] = carr[1].strip()
   return retdict, status
 
 def easy_exit(eval,dbcfgs):
@@ -148,6 +150,7 @@ if __name__ == "__main__":
   if cfgstatus != 0:
     print 'Configuration file incorrectly formatted.'
     easy_exit(-3)
+  print cfg
   ##############################################################################
   # LOG FILE CONFIGURATION
   ##############################################################################
@@ -155,7 +158,7 @@ if __name__ == "__main__":
   logging.basicConfig(filename=cfg['logfile'],\
             format='%(asctime)s %(levelname)s: %(message)s',\
             filemode='a', level=logging.DEBUG)
-  logging.setLevel(args.verbosity)
+  #logging.setLevel(args.verbosity)
   ##############################################################################
   # Check configuration now that we have logging in place
   ##############################################################################
@@ -201,6 +204,7 @@ if __name__ == "__main__":
   if dbcfg == None:
     logging.info('DB failed to initialize.')
     easy_exit(-1,None)
+  tblstruct['tblname'] = cfg['tblname']
   tblstatus = checktbl(dbcfg,tblstruct)
   if tblstatus != 0:
     logging.error('Unable to create table in DB.')

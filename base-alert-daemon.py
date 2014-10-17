@@ -12,6 +12,7 @@ try:
   from daemon import runner
   from os import environ, path, _exit, makedirs, stat, devnull, access, X_OK
   from subprocess import call, STDOUT, PIPE, Popen
+  import argparse
   pathname = path.dirname(sys.argv[0])
 except:
   print 'Failed to load base modules'
