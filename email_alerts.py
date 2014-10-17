@@ -12,25 +12,40 @@
 try:
   from email import MIMEText
   import smtplib
-
 except:
-  print 'Failed to load modules'
-  _exit(-1)
+  raise Exception( 'Failed to load modules needed for email_alerts')
 
+################################################################################
+# Basic functionality
+################################################################################
+class email_alerts(cfg):
+  def __init__(self):
+    try:
+      self.sender = cfg['email_sender']
+      self.recipient = cfg['email_recipient']
+      self.smtp = cfg['email_smtp']
+      self.status = 0
+    except:
+      self.status = -1
 
-def email(smtpsrv,sender,recipient,subject,text):
-  msg = MIMEText.MIMEText(text)
-  # sender == the sender's email address
-  # recipient == the recipient's email address
-  msg['Subject'] = subject
-  msg['From'] = sender
-  if hasattr(recipient,'__iter__'):
-    msg['To'] = ','.join(recipient)
-  else:
-    msg['To'] = recipient
-  
-  # Send the message via our own SMTP server, but don't include the
-  # envelope header.
-  s = smtplib.SMTP(smtpsrv)
-  s.sendmail(sender, msg['To'].split(','), msg.as_string())
-  s.quit()
+  def alert(subject,text):
+    if self.status != 0:
+      return -1
+    msg = MIMEText.MIMEText(text)
+    # sender == the sender's email address
+    # recipient == the recipient's email address
+    msg['Subject'] = subject
+    msg['From'] = self.sender
+    if hasattr(self.recipient,'__iter__'):
+      msg['To'] = ','.join(self.recipient)
+    else:
+      msg['To'] = self.recipient
+    # Send the message via our own SMTP server, but don't include the
+    # envelope header.
+    try:
+      s = smtplib.SMTP(smtpsrv)
+      s.sendmail(sender, msg['To'].split(','), msg.as_string())
+      s.quit()
+      return 0
+    except:
+      return 1

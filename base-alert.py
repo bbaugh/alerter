@@ -23,23 +23,6 @@ except:
   print 'Failed to load db_interface'
   _exit(-1)
 
-try:
-  import email_alerts as ea
-except:
-  print 'Failed to load email_alerts'
-  _exit(-1)
-
-try:
-  import twitter_alerts as ta
-except:
-  print 'Failed to load db interface'
-  _exit(-1)
-
-try:
-  import slack_alerts as sa
-except:
-  print 'Failed to load db interface'
-  _exit(-1)
 
 parser = argparse.ArgumentParser(description='Sending alerts.')
 
@@ -54,6 +37,11 @@ parser.add_argument("--cfg-delimiter",\
                     action="store", dest="cfgdelimiter", \
                     default=':',\
                     help="Delimiter used in configuration file.")
+
+parser.add_argument("--verbosity",\
+                    action="store", dest="verbosity", \
+                    default=30,\
+                    help="Logging level:\n  CRITICAL - 50\n  ERROR - 40\n  WARNING - 30\n  INFO - 20\n  DEBUG - 10\n")
 
 
 args = parser.parse_args()
@@ -139,20 +127,15 @@ def sendalerts(dbcfg,cfg,subject,text):
   ckalert = "SELECT * FROM %s WHERE start<%i AND type=%i AND sent IS NOT NULL;"
   ckalert%(cfg['tblname'],start_time,)
   dbcfg.curs.execute(ckalert)
-  for row in dbcfg.curs:
   
-  atypes = cfg['type'].split(',')
-  for ctype in atypes:
-    ctype = ctype.strip()
-    if ctype == 'email':
-      ea.email(cfg['smtp'],cfg['sender'],cfg['recipient'],subject,text)
+  for calerts in cfg['alerters']:
+    calerts.alert(subject,text)
 
 
 if __name__ == "__main__":
   ##############################################################################
   # read config
   ##############################################################################
-
   cfg,cfgstatus = readcfg(args.cfgfile,args.cfgdelimiter)
   if cfgstatus != 0:
     print 'Configuration file incorrectly formatted.'
@@ -164,6 +147,41 @@ if __name__ == "__main__":
   logging.basicConfig(filename=cfg['logfile'],\
             format='%(asctime)s %(levelname)s: %(message)s',\
             filemode='a', level=logging.DEBUG)
+  logging.setLevel(args.verbosity)
+  ##############################################################################
+  # Check configuration now that we have logging in place
+  ##############################################################################
+  atypes = cfg['type'].split(',')
+  utypes = []
+  cfg['alerters'] = []
+  for ctype in atypes:
+    ctype = ctype.strip()
+    if ctype == 'email':
+      try:
+        import email_alerts as ea
+        cfg['alerters'].append(ea.email_alerts(cfg))
+      except:
+        logging.error('Failed to load email_alerts')
+        easy_exit(-4)
+    elif ctype == 'twitter':
+      try:
+        import twitter_alerts as ta
+        cfg['alerters'].append(ea.twitter_alerts(cfg))
+      except:
+        logging.error('Failed to load twitter_alerts')
+        easy_exit(-4)
+    elif ctype == 'slack':
+      try:
+        import slack_alerts as sa
+        cfg['alerters'].append(ea.slack_alerts(cfg))
+      except:
+        logging.error('Failed to load slack_alerts')
+        easy_exit(-4)
+    else:
+      utypes.append(ctype)
+  if len(utypes) != 0:
+    logging.error('Unsupported alert types: %s'%(', '.join(utypes)))
+    easy_exit(-4)
   ##############################################################################
   # Get Database
   ##############################################################################
