@@ -18,8 +18,9 @@ except:
 ################################################################################
 # Basic functionality
 ################################################################################
-class twitter_alerts(cfg):
+class slack_alerts(cfg):
   def __init__(self):
+    self.type = 'slack'
     self.urlfrmt = "https://%s/services/hooks/incoming-webhook?token=%s"
     try:
       self.domain = cfg['slack_domain']

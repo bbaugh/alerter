@@ -20,6 +20,7 @@ except:
 ################################################################################
 class twitter_alerts(cfg):
   def __init__(self):
+    self.type = 'twitter'
     try:
       self.auth = tweepy.OAuthHandler(cfg['twitter_consumer_key'], \
                                       cfg['twitter_consumer_secret'])

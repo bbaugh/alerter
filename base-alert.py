@@ -41,7 +41,12 @@ parser.add_argument("--cfg-delimiter",\
 parser.add_argument("--verbosity",\
                     action="store", dest="verbosity", \
                     default=30,\
-                    help="Logging level:\n  CRITICAL - 50\n  ERROR - 40\n  WARNING - 30\n  INFO - 20\n  DEBUG - 10\n")
+                    help="Logging level:\n"\
+                    +"  CRITICAL - 50\n"\
+                    +"  ERROR - 40\n"\
+                    +"  WARNING - 30\n"\
+                    +"  INFO - 20\n"\
+                    +"  DEBUG - 10\n")
 
 
 args = parser.parse_args()
@@ -121,15 +126,18 @@ def easy_exit(eval,dbcfgs):
         nfailed += 1
   _exit(eval)
 
-def sendalerts(dbcfg,cfg,subject,text):
+def sendalerts(dbcfg,cfg,type,subject,text):
   start_time = int(time.time())
   # Don't send duplicate alerts
-  ckalert = "SELECT * FROM %s WHERE start<%i AND type=%i AND sent IS NOT NULL;"
+  ckalert = "SELECT * FROM %s WHERE start<%i AND type=%i;"
   ckalert%(cfg['tblname'],start_time,)
   dbcfg.curs.execute(ckalert)
-  
+  rstatus = []
   for calerts in cfg['alerters']:
-    calerts.alert(subject,text)
+    astatus = calerts.alert(subject,text)
+    if astatus != 0:
+      rstatus.append('%s failed to alert with: %i'%(calerts.type,astatus))
+  return rstatus
 
 
 if __name__ == "__main__":
@@ -206,7 +214,7 @@ if __name__ == "__main__":
   # send alert
   ##############################################################################
   if send_alert:
-    sendalerts(dbcfg,cfg,'test alert',\
+    astatus = sendalerts(dbcfg,cfg,1,'test alert',\
                'This is a test. This is only a test of the alert system.')
   ##############################################################################
   # clean up

@@ -20,6 +20,7 @@ except:
 ################################################################################
 class email_alerts(cfg):
   def __init__(self):
+    self.type = 'email'
     try:
       self.sender = cfg['email_sender']
       self.recipient = cfg['email_recipient']
