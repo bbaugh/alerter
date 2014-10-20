@@ -121,14 +121,9 @@ def easy_exit(eval,dbcfgs=None):
         nfailed += 1
   _exit(eval)
 
-def sendalerts(dbcfg,cfg,type,subject,text):
-  start_time = int(time.time())
-  # Don't send duplicate alerts
-  ckalert = "SELECT * FROM %s WHERE start<%i AND type=%i;"
-  ckalert = ckalert%(cfg['tblname'],start_time,type)
-  dbcfg.curs.execute(ckalert)
+def sendalerts(alrtrs,type,subject,text):
   rstatus = []
-  for calerts in cfg['alerters']:
+  for calerts in alrtrs:
     astatus = calerts.alert(subject,text)
     if astatus != 0:
       rstatus.append('%s failed to alert with: %i'%(calerts.type,astatus))
@@ -205,17 +200,51 @@ if __name__ == "__main__":
     easy_exit(-1,dbcfg)
   ##############################################################################
   # Meat
-  # Edit this area to perform check whatever is desired
+  # Edit this area to perform check of whatever is desired
   ##############################################################################
-  send_alert = True
+  ctime = int(time.time())
+  ctype = 2
+  # Don't duplicate rows
+  ckalert = "SELECT * FROM %s WHERE start<%i AND type=%i AND end is NULL;"
+  ckalert = ckalert%(cfg['tblname'],ctime,ctype)
+  # Example of closing all open rows
+  for crw in dbcfg.curs.execute(ckalert):
+    updtalert = "UPDATE %s SET end=%i WHERE start=%i and type=%i;"
+    updtalert = updtalert%(cfg['tblname'],ctime,\
+                           crw[tblstruct['start']['index']],ctype)
+    dbcfg.curs.execute(updtalert)
+
+  # Example of adding a new row
+  insrtalert = "INSERT INTO %s(start,type) VALUES(%i,%i);"
+  insrtalert = insrtalert%(cfg['tblname'],ctime,ctype)
+  dbcfg.curs.execute(insrtalert)
+
+  time.sleep(1) # let the clock tick
+  send_alert = True # for testing always send the alert
   ##############################################################################
   # send alert
   ##############################################################################
   if send_alert:
-    astatus = sendalerts(dbcfg,cfg,1,'test alert',\
-               'This is a test. This is only a test of the alert system.')
+    ctime = int(time.time())
+    # Don't send duplicate alerts
+    ckalert  = "SELECT * FROM %s WHERE start<%i AND type=%i AND end is NULL "
+    ckalert += "AND sent is NULL;"
+    ckalert = ckalert%(cfg['tblname'],ctime,ctype)
+    # Example of sending messages and setting DB to sent
+    setsnts = []
+    for crw in dbcfg.curs.execute(ckalert):
+      astatus = sendalerts(cfg['alerters'],ctype,'test alert',\
+               'This is a test.\nThis is only a test of the alert system.')
+      setsnts.append([crw[tblstruct['start']['index']],ctype,ctime])
     for cs in astatus:
       logger.info(cs)
+    for csnt in setsnts:
+      # Example of updating a row
+      updtalert = "UPDATE %s SET sent=%i WHERE start=%i and type=%i;"
+      updtalert = updtalert%(cfg['tblname'],csnt[2],csnt[0],csnt[1])
+      dbcfg.curs.execute(updtalert)
+
+      
   ##############################################################################
   # clean up
   ##############################################################################
