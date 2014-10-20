@@ -10,7 +10,7 @@
 # Load needed modules
 ################################################################################
 from json import dumps as jdumps
-from requests post
+from requests import post, codes
 from base_alerts import base_alerts
 
 ################################################################################
@@ -20,21 +20,25 @@ class slack_alerts(base_alerts):
   def __init__(self,cfg):
     base_alerts.__init__(self,"slack")
     self.urlfrmt = "https://%s/services/hooks/incoming-webhook?token=%s"
-    try:
-      self.domain = cfg['slack_domain']
-      self.token = cfg['slack_token']
-      self.channel = cfg['slack_channel']
-      self.username = cfg['slack_user']
-      self.url = self.urlfrmt%(self.domain,self.webhook_token)
+    self.domain = cfg['slack_domain']
+    self.token = cfg['slack_token']
+    self.channel = cfg['slack_channel']
+    self.username = cfg['slack_user']
+    self.url = self.urlfrmt%(self.domain,self.token)
+    self.icon_url = None
+    if cfg.has_key('slack_icon_url'):
       self.icon_url = cfg['slack_icon_url']
+    self.timeout = 2
+    if cfg.has_key('slack_timeout'):
       self.timeout = cfg['slack_timeout']
-      self.status = 0
-    except:
-      self.status = -1
+    self.status = 0
+
   def alert(self,subject,text):
     if self.status != 0:
       return -1
     payload = {'channel': self.channel, 'username': self.username, \
-               'text': text, 'icon_url': self.icon_url}
-    r = post(url, data=jdumps(payload), timeout=self.timeout)
+               'text': text}
+    r = post(self.url, data=jdumps(payload), timeout=self.timeout)
+    if r.status_code == codes.ok:
+      return 0
     return r.status_code

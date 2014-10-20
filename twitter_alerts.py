@@ -18,15 +18,13 @@ from base_alerts import base_alerts
 class twitter_alerts(base_alerts):
   def __init__(self,cfg):
     base_alerts.__init__(self,"twitter")
-    try:
-      self.auth = OAuthHandler(cfg['twitter_consumer_key'], \
-                                      cfg['twitter_consumer_secret'])
-      self.auth.set_access_token(cfg['twitter_user_key'],\
-                                 cfg['twitter_user_secret'])
-      self.api = API(self.auth)
-      self.status = 0
-    except:
-      self.status = -1
+    self.auth = OAuthHandler(cfg['twitter_consumer_key'], \
+                                    cfg['twitter_consumer_secret'])
+    self.auth.set_access_token(cfg['twitter_user_key'],\
+                               cfg['twitter_user_secret'])
+    self.api = API(self.auth)
+    self.status = 0
+
 
 
   def alert(self,subject,text):

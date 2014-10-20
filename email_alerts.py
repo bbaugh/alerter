@@ -9,7 +9,13 @@
 ################################################################################
 # Load needed modules
 ################################################################################
-from email.mime.text import MIMEText
+try:
+  from email.mime.text import MIMEText
+except:
+  try:
+    from email.mime.Text import MIMEText
+  except:
+    from email import MIMEText
 from smtplib import SMTP
 from base_alerts import base_alerts
 
@@ -20,18 +26,15 @@ from base_alerts import base_alerts
 class email_alerts(base_alerts):
   def __init__(self,cfg):
     base_alerts.__init__(self,"email")
-    try:
-      self.sender = cfg['email_sender']
-      self.recipient = cfg['email_recipient']
-      self.smtp = cfg['email_smtp']
-      self.status = 0
-    except:
-      self.status = -1
+    self.sender = cfg['email_sender']
+    self.recipient = cfg['email_recipient']
+    self.smtp = cfg['email_smtp']
+    self.status = 0
 
   def alert(self,subject,text):
     if self.status != 0:
       return -1
-    msg = MIMEText.MIMEText(text)
+    msg = MIMEText(text)
     # sender == the sender's email address
     # recipient == the recipient's email address
     msg['Subject'] = subject
