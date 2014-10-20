@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 ################################################################################
-#  base-alert-daemon.py
+#  alerter-daemon.py
 #
 #  Script daemonizes sending of alerts.
 #
@@ -29,12 +29,12 @@ parser.add_argument("--inter",\
 
 parser.add_argument("--pid-file",\
                     action="store", dest="pidfile", \
-                    default='/tmp/.base-alert-daemon.lock',\
+                    default='/tmp/.alerter-daemon.lock',\
                     help="Lock file for daemon.")
 
 parser.add_argument("--exec-fiile",\
                     action="store", dest="execfile", \
-                    default='%s/base-alert.py'%(pathname),\
+                    default='%s/alerter.py'%(pathname),\
                     help="Executable file to be run by daemon.")
 
 parser.add_argument("--log-fiile",\

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 ################################################################################
-#  base-alert.py
+#  alerter.py
 #  Sends alerts keeping track of them via sqlite db.
 #  This is a simplified framework which should be modified for specific use
 #
