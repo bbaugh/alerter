@@ -12,14 +12,15 @@
 try:
   import json
   import requests
+  import base_alerts
 except:
   raise Exception( 'Failed to load modules needed for slack_alerts')
 
 ################################################################################
 # Basic functionality
 ################################################################################
-class slack_alerts(cfg):
-  def __init__(self):
+class slack_alerts(base_alerts):
+  def __init__(self,cfg):
     self.type = 'slack'
     self.urlfrmt = "https://%s/services/hooks/incoming-webhook?token=%s"
     try:

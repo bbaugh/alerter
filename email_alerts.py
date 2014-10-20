@@ -12,14 +12,15 @@
 try:
   from email import MIMEText
   import smtplib
+  import base_alerts
 except:
   raise Exception( 'Failed to load modules needed for email_alerts')
 
 ################################################################################
 # Basic functionality
 ################################################################################
-class email_alerts(cfg):
-  def __init__(self):
+class email_alerts(base_alerts):
+  def __init__(self,cfg):
     self.type = 'email'
     try:
       self.sender = cfg['email_sender']

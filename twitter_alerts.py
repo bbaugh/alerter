@@ -11,6 +11,7 @@
 ################################################################################
 try:
   import tweepy
+  import base_alerts
 except:
   raise Exception( 'Failed to load modules needed for twitter_alerts')
 
@@ -18,8 +19,8 @@ except:
 ################################################################################
 # Basic functionality
 ################################################################################
-class twitter_alerts(cfg):
-  def __init__(self):
+class twitter_alerts(base_alerts):
+  def __init__(self,cfg):
     self.type = 'twitter'
     try:
       self.auth = tweepy.OAuthHandler(cfg['twitter_consumer_key'], \
