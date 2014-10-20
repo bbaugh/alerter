@@ -214,6 +214,8 @@ if __name__ == "__main__":
   if send_alert:
     astatus = sendalerts(dbcfg,cfg,1,'test alert',\
                'This is a test. This is only a test of the alert system.')
+    for cs in astatus:
+      logger.info(cs)
   ##############################################################################
   # clean up
   ##############################################################################
