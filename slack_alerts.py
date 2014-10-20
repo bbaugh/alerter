@@ -45,7 +45,6 @@ class slack_alerts(base_alerts):
       payload['icon_url'] = self.icon_url
     if self.icon_emoji != None:
       payload['icon_emoji'] = self.icon_emoji
-    print payload
     r = post(self.url, data=jdumps(payload), timeout=self.timeout)
     if r.status_code == codes.ok:
       return 0
