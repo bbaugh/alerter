@@ -9,7 +9,7 @@
 ################################################################################
 # Load needed modules
 ################################################################################
-from email import MIMEText
+from email.mime.text import MIMEText
 from smtplib import SMTP
 from base_alerts import base_alerts
 

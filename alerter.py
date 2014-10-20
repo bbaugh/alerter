@@ -132,7 +132,6 @@ def sendalerts(dbcfg,cfg,type,subject,text):
     astatus = calerts.alert(subject,text)
     if astatus != 0:
       rstatus.append('%s failed to alert with: %i'%(calerts.type,astatus))
-  print 'done.'
   return rstatus
 
 
