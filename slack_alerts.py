@@ -28,6 +28,9 @@ class slack_alerts(base_alerts):
     self.icon_url = None
     if cfg.has_key('slack_icon_url'):
       self.icon_url = cfg['slack_icon_url']
+    self.icon_emoji = None
+    if cfg.has_key('slack_icon_emoji'):
+      self.icon_emoji = cfg['slack_icon_emoji']
     self.timeout = 2
     if cfg.has_key('slack_timeout'):
       self.timeout = cfg['slack_timeout']
@@ -38,6 +41,11 @@ class slack_alerts(base_alerts):
       return -1
     payload = {'channel': self.channel, 'username': self.username, \
                'text': text}
+    if self.icon_url != None:
+      payload['icon_url'] = self.icon_url
+    if self.icon_emoji != None:
+      payload['icon_emoji'] = self.icon_emoji
+    print payload
     r = post(self.url, data=jdumps(payload), timeout=self.timeout)
     if r.status_code == codes.ok:
       return 0

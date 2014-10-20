@@ -98,12 +98,12 @@ def readcfg(cfgfile,delimiter):
     # Skip comments
     if line[0] == '#':
       continue
-    carr = line.split(delimiter)
+    dloc = line.find(delimiter)
     # Skipp badly formatted lines
-    if len(carr) != 2:
+    if dloc < 0:
       status += 1
       continue
-    retdict[carr[0].strip()] = carr[1].strip()
+    retdict[line[:dloc].strip()] = line[dloc+1:].strip()
   return retdict, status
 
 def easy_exit(eval,dbcfgs=None):
@@ -234,7 +234,7 @@ if __name__ == "__main__":
     setsnts = []
     for crw in dbcfg.curs.execute(ckalert):
       astatus = sendalerts(cfg['alerters'],ctype,'test alert',\
-               'This is a test.\nThis is only a test of the alert system.')
+               'This is a test.\nThis is only a test of the <https://github.com/bbaugh/alerter|alerter system>.')
       setsnts.append([crw[tblstruct['start']['index']],ctype,ctime])
     for cs in astatus:
       logger.info(cs)
