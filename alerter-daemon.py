@@ -7,16 +7,13 @@
 #  Created by Brian Baughman on 2014-10-16.
 #  Copyright 2014 Brian Baughman. All rights reserved.
 ################################################################################
-try:
-  import sys, re, time
-  from daemon import runner
-  from os import environ, path, _exit, makedirs, stat, devnull, access, X_OK
-  from subprocess import call, STDOUT, PIPE, Popen
-  import argparse
-  pathname = path.dirname(sys.argv[0])
-except:
-  print 'Failed to load base modules'
-  sys.exit(-1)
+import sys, re, time
+from daemon import runner
+from os import environ, path, _exit, makedirs, stat, devnull, access, X_OK
+from subprocess import call, STDOUT, PIPE, Popen
+import argparse
+pathname = path.dirname(sys.argv[0])
+
 
 
 parser = argparse.ArgumentParser(description='Creates a daemon for sending alerts.')

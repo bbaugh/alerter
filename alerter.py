@@ -10,19 +10,12 @@
 ################################################################################
 # Load needed modules
 ################################################################################
-try:
-  import sys, re, time, logging, traceback
-  from os import environ, path, _exit, makedirs, stat, access, R_OK, W_OK
-  import argparse
-except:
-  print 'Failed to load base modules'
-  _exit(-1)
+import sys, re, time, logging, traceback
+from os import environ, path, _exit, makedirs, stat, access, R_OK, W_OK
+import argparse
 
-try:
-  from db_interface import *
-except:
-  print 'Failed to load db_interface'
-  _exit(-1)
+from db_interface import dbcfgobj
+
 
 
 parser = argparse.ArgumentParser(description='Sending alerts.')
@@ -35,12 +28,12 @@ parser.add_argument("--cfg-file",\
 
 parser.add_argument("--cfg-delimiter",\
                     action="store", dest="cfgdelimiter", \
-                    default=':',\
+                    default=':', type=str,\
                     help="Delimiter used in configuration file.")
 
 parser.add_argument("--verbosity",\
                     action="store", dest="verbosity", \
-                    default=30,\
+                    default=30, type=int,\
                     help="Logging level:\n"\
                     +"  CRITICAL - 50\n"\
                     +"  ERROR - 40\n"\
@@ -113,7 +106,7 @@ def readcfg(cfgfile,delimiter):
     retdict[carr[0].strip()] = carr[1].strip()
   return retdict, status
 
-def easy_exit(eval,dbcfgs):
+def easy_exit(eval,dbcfgs=None):
   '''
     Function to clean up before exiting and exiting itself
   '''
@@ -132,13 +125,14 @@ def sendalerts(dbcfg,cfg,type,subject,text):
   start_time = int(time.time())
   # Don't send duplicate alerts
   ckalert = "SELECT * FROM %s WHERE start<%i AND type=%i;"
-  ckalert%(cfg['tblname'],start_time,)
+  ckalert = ckalert%(cfg['tblname'],start_time,type)
   dbcfg.curs.execute(ckalert)
   rstatus = []
   for calerts in cfg['alerters']:
     astatus = calerts.alert(subject,text)
     if astatus != 0:
       rstatus.append('%s failed to alert with: %i'%(calerts.type,astatus))
+  print 'done.'
   return rstatus
 
 
@@ -150,15 +144,19 @@ if __name__ == "__main__":
   if cfgstatus != 0:
     print 'Configuration file incorrectly formatted.'
     easy_exit(-3)
-  print cfg
   ##############################################################################
   # LOG FILE CONFIGURATION
   ##############################################################################
   # Log file name
-  logging.basicConfig(filename=cfg['logfile'],\
-            format='%(asctime)s %(levelname)s: %(message)s',\
-            filemode='a', level=logging.DEBUG)
-  #logging.setLevel(args.verbosity)
+  logfname = cfg['logfile']
+  if logfname == "stdout":
+    logfname = sys.stdout
+  logger = logging.getLogger()
+  logch = logging.StreamHandler(logfname)
+  logfmt = logging.Formatter('%(asctime)s %(levelname)s: %(message)s')
+  logch.setFormatter(logfmt)
+  logch.setLevel(args.verbosity)
+  logger.addHandler(logch)
   ##############################################################################
   # Check configuration now that we have logging in place
   ##############################################################################
@@ -172,48 +170,45 @@ if __name__ == "__main__":
         import email_alerts as ea
         cfg['alerters'].append(ea.email_alerts(cfg))
       except:
-        logging.error('Failed to load email_alerts')
+        logger.error('Failed to load email_alerts:\n%s'%traceback.format_exc())
         easy_exit(-4)
     elif ctype == 'twitter':
       try:
         import twitter_alerts as ta
-        cfg['alerters'].append(ea.twitter_alerts(cfg))
+        cfg['alerters'].append(ta.twitter_alerts(cfg))
       except:
-        logging.error('Failed to load twitter_alerts')
+        logger.error('Failed to load twitter_alerts:\n%s'%traceback.format_exc())
         easy_exit(-4)
     elif ctype == 'slack':
       try:
         import slack_alerts as sa
-        cfg['alerters'].append(ea.slack_alerts(cfg))
+        cfg['alerters'].append(sa.slack_alerts(cfg))
       except:
-        logging.error('Failed to load slack_alerts')
+        logger.error('Failed to load slack_alerts:\n%s'%traceback.format_exc())
         easy_exit(-4)
     else:
       utypes.append(ctype)
   if len(utypes) != 0:
-    logging.error('Unsupported alert types: %s'%(', '.join(utypes)))
+    logger.error('Unsupported alert types: %s'%(', '.join(utypes)))
     easy_exit(-4)
   ##############################################################################
   # Get Database
   ##############################################################################
-  try:
-    dbcfg = connectdb(cfg['dbfname'])
-  except:
-    logging.error('Could not read %s'%(cfg['dbfname']))
-    easy_exit(-1,None)
+  dbcfg = dbcfgobj(cfg['dbfname'])
   if dbcfg == None:
-    logging.info('DB failed to initialize.')
+    logger.info('DB failed to initialize.')
     easy_exit(-1,None)
   tblstruct['tblname'] = cfg['tblname']
-  tblstatus = checktbl(dbcfg,tblstruct)
+  tblstatus = dbcfg.checktbl(tblstruct)
   if tblstatus != 0:
-    logging.error('Unable to create table in DB.')
+    logger.error('Unable to create table (%s) in DB:\n%s'%(tblstruct['tblname'],\
+                                                           traceback.format_exc()))
     easy_exit(-1,dbcfg)
   ##############################################################################
   # Meat
   # Edit this area to perform check whatever is desired
   ##############################################################################
-  send_alert = False
+  send_alert = True
   ##############################################################################
   # send alert
   ##############################################################################

@@ -11,7 +11,7 @@
 ################################################################################
 # Basic functionality
 ################################################################################
-class base_alerts(cfg):
+class base_alerts:
   def __init__(self,name):
     self.type = name
     self.status = -2

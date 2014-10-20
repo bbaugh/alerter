@@ -9,19 +9,16 @@
 ################################################################################
 # Load needed modules
 ################################################################################
-try:
-  import json
-  import requests
-  import base_alerts
-except:
-  raise Exception( 'Failed to load modules needed for slack_alerts')
+from json import dumps as jdumps
+from requests post
+from base_alerts import base_alerts
 
 ################################################################################
 # Basic functionality
 ################################################################################
 class slack_alerts(base_alerts):
   def __init__(self,cfg):
-    self.type = 'slack'
+    base_alerts.__init__(self,"slack")
     self.urlfrmt = "https://%s/services/hooks/incoming-webhook?token=%s"
     try:
       self.domain = cfg['slack_domain']
@@ -34,10 +31,10 @@ class slack_alerts(base_alerts):
       self.status = 0
     except:
       self.status = -1
-  def alert(subject,text):
+  def alert(self,subject,text):
     if self.status != 0:
       return -1
     payload = {'channel': self.channel, 'username': self.username, \
                'text': text, 'icon_url': self.icon_url}
-    r = requests.post(url, data=json.dumps(payload), timeout=self.timeout)
+    r = post(url, data=jdumps(payload), timeout=self.timeout)
     return r.status_code

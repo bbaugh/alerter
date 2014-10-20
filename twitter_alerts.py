@@ -9,31 +9,27 @@
 ################################################################################
 # Load needed modules
 ################################################################################
-try:
-  import tweepy
-  import base_alerts
-except:
-  raise Exception( 'Failed to load modules needed for twitter_alerts')
-
+from tweepy import OAuthHandler, API
+from base_alerts import base_alerts
 
 ################################################################################
 # Basic functionality
 ################################################################################
 class twitter_alerts(base_alerts):
   def __init__(self,cfg):
-    self.type = 'twitter'
+    base_alerts.__init__(self,"twitter")
     try:
-      self.auth = tweepy.OAuthHandler(cfg['twitter_consumer_key'], \
+      self.auth = OAuthHandler(cfg['twitter_consumer_key'], \
                                       cfg['twitter_consumer_secret'])
       self.auth.set_access_token(cfg['twitter_user_key'],\
                                  cfg['twitter_user_secret'])
-      self.api = tweepy.API(self.auth)
+      self.api = API(self.auth)
       self.status = 0
     except:
       self.status = -1
 
 
-  def alert(subject,text):
+  def alert(self,subject,text):
     if self.status != 0:
       return -1
     if len(text) > 140:
